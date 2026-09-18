@@ -24,5 +24,11 @@ public class MatchService : IMatchService
         var mapped = _mapper.Map<IEnumerable<MatchDto>>(matches);
         return mapped;
     }
+    public async Task<MatchDetailDto?> GetDetailAsync(int id)
+    {
+        var match = await _matchRepository.GetByIdWithDetailsAsync(id);
+        return match is null ? null : _mapper.Map<MatchDetailDto>(match);   //if ternario
+    } 
+
 }
 
