@@ -1,9 +1,11 @@
+using GolBet.Entities;
 using GolBet.Repositories.Data;
 using GolBet.Repositories.Implementations;
 using GolBet.Repositories.Interfaces;
 using GolBet.Services.Implementations;
 using GolBet.Services.Interfaces;
 using GolBet.Services.Mapping;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
@@ -18,6 +20,24 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddIdentity<AppUser, IdentityRole>(options => //Injection of the identity service.
+{
+    // Academic-friendly password policy (production would be stricter) --> The policies we are going to set for the password.
+    options.Password.RequiredLength = 6; //minimum lenght of password
+    options.Password.RequireNonAlphanumeric = false; //does not require special characters
+    options.Password.RequireUppercase = false; //does not require uppercase
+    options.Password.RequireDigit = true; //requires at least one numeric digit
+    options.User.RequireUniqueEmail = true; //each user must have a unique email addr
+})
+.AddEntityFrameworkStores<AppDbContext>();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";           // anonymous hitting [Authorize], url redirects to login page
+    options.AccessDeniedPath = "/Account/AccessDenied";  // wrong role, url redirects to access denied page
+});
+
 
 // Open generic registration: one line, a repository for every entity
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
@@ -38,8 +58,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbSeeder.SeedAsync(context);
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+
+    await DbSeeder.SeedAsync(context, roleManager, userManager); //Se amplia para que reciba los parámetros de roleManager y userManager.
 }
+
 
 
 // Configure the HTTP request pipeline.
@@ -55,7 +79,8 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseAuthorization();
+app.UseAuthentication();   // who are you?  (reads the cookie, builds User)
+app.UseAuthorization();    // may you do this?  (evaluates [Authorize])
 
 app.MapControllerRoute(
     name: "default",
