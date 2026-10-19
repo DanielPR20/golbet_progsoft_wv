@@ -1,4 +1,4 @@
-﻿// GolBet.Web/Controllers/MatchesController.cs  (versión completa)
+﻿// GolBet.Web/Controllers/MatchesController.cs
 using GolBet.Entities.Enums;
 using GolBet.Repositories.Data;
 using GolBet.Services.DTOs;
@@ -14,20 +14,21 @@ public class MatchesController : Controller
     private readonly IMatchService _matchService;
     private readonly ITeamService _teamService;
 
-
-
     public MatchesController(IMatchService matchService, ITeamService teamService)
-    { _matchService = matchService; 
-      _teamService = teamService;
+    {
+        _matchService = matchService;
+        _teamService = teamService;
     }
 
-    // GET /Matches            -> all matches
-    // GET /Matches?status=Scheduled -> filtered board
-    public async Task<IActionResult> Index(MatchStatus? status)
+    // GET /Matches                         -> todos los partidos
+    // GET /Matches?status= Scheduled        -> cartelera filtrada por estado
+    // GET /Matches?search= nombre equipo        -> cartelera filtrada por equipo
+    public async Task<IActionResult> Index(MatchStatus? status, string? search)
     {
         ViewBag.CurrentStatus = status;
-        var board = await _matchService.GetBoardAsync(status);
-        return View(board);
+        ViewBag.CurrentSearch = search;
+        var board = await _matchService.GetBoardAsync(status, search);
+        return View(board); //Retorna la vista Index con la lista filtrada de partidos
     }
 
     // GET /Matches/Detail/3
@@ -63,7 +64,7 @@ public class MatchesController : Controller
             TempData["Success"] = "Partido creado correctamente.";
             return RedirectToAction(nameof(Index));
         }
-        catch (InvalidOperationException ex)      // business rule violated
+        catch (InvalidOperationException ex)      // regla de negocio violada
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             await LoadTeamsAsync();
@@ -78,7 +79,7 @@ public class MatchesController : Controller
         var dto = await _matchService.GetForEditAsync(id);
         if (dto is null) return NotFound();
 
-        await LoadTeamsAsync(); // the form needs the dropdowns too
+        await LoadTeamsAsync();
         return View(dto);
     }
 
@@ -99,7 +100,7 @@ public class MatchesController : Controller
             TempData["Success"] = "Partido actualizado correctamente.";
             return RedirectToAction(nameof(Index));
         }
-        catch (InvalidOperationException ex)      // business rule violated
+        catch (InvalidOperationException ex)      // regla de negocio violada
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             await LoadTeamsAsync();
@@ -122,5 +123,4 @@ public class MatchesController : Controller
         var teams = await _teamService.GetAllAsync();
         ViewBag.Teams = new SelectList(teams, "Id", "Name");
     }
-
 }
